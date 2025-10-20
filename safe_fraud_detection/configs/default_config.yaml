@@ -1,0 +1,42 @@
+# Default configuration for SAFE model
+
+model:
+  input_dim: 5
+  hidden_dim: 32
+  num_layers: 1
+  dropout: 0.0
+
+training:
+  batch_size: 16
+  learning_rate: 0.001
+  epochs: 100
+  early_stopping_patience: 10
+  gradient_clip: 5.0
+  weight_decay: 0.0
+  optimizer: 'adam'
+
+data:
+  normalize: 'standard'  # 'standard', 'minmax', or null
+  handle_nan: 'zero'  # 'zero', 'mean', 'forward_fill'
+  train_ratio: 0.7
+  val_ratio: 0.1
+  test_ratio: 0.2
+  random_seed: 42
+
+loss:
+  loss_type: 'safe'  # 'safe', 'regular', or 'weighted'
+  epsilon: 1.0e-7
+  event_weight: 1.0
+  censored_weight: 1.0
+
+evaluation:
+  threshold: 0.5
+  eval_timestamps: [0, 1, 2, 3, 4]
+
+# Paths
+data_path: 'data/'
+checkpoint_dir: 'checkpoints/'
+log_dir: 'logs/'
+
+# Device
+device: 'cuda'  # 'cuda' or 'cpu'

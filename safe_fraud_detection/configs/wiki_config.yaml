@@ -1,0 +1,39 @@
+# Configuration for Wikipedia vandalism detection dataset
+
+model:
+  input_dim: 8  # Wiki has 8 features per timestamp
+  hidden_dim: 32
+  num_layers: 1
+  dropout: 0.0
+
+training:
+  batch_size: 16
+  learning_rate: 0.001
+  epochs: 100
+  early_stopping_patience: 10
+  gradient_clip: 5.0
+  weight_decay: 0.0
+  optimizer: 'adam'
+
+data:
+  normalize: 'standard'
+  handle_nan: 'zero'
+  train_ratio: 0.7
+  val_ratio: 0.1
+  test_ratio: 0.2
+  random_seed: 42
+
+loss:
+  loss_type: 'safe'
+  epsilon: 1.0e-7
+  event_weight: 1.0
+  censored_weight: 1.0
+
+evaluation:
+  threshold: 0.5
+  eval_timestamps: [0, 1, 2, 3, 4]
+
+data_path: 'data/wiki_data.npz'
+checkpoint_dir: 'checkpoints/wiki/'
+log_dir: 'logs/wiki/'
+device: 'cuda'
