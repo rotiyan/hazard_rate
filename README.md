@@ -10,13 +10,62 @@ A production-ready PyTorch implementation of SAFE (Survival Analysis for Fraud E
 
 SAFE combines survival analysis with recurrent neural networks (GRU) to detect fraudulent users earlier than traditional classification methods. Unlike standard classifiers that make independent predictions at each timestamp, SAFE guarantees consistent, monotonically decreasing survival probabilities over time.
 
+This repository now includes **two main applications**:
+1. **Original SAFE**: Twitter/Wikipedia fraud detection (fixed-length sequences)
+2. **Credit Card Fraud Detection**: Variable-length transaction sequences with automatic padding/masking
+
 ### Key Features
 
 - **Early Detection**: Specifically designed to detect fraud before suspension time
 - **Consistent Predictions**: Monotonically decreasing survival probabilities
 - **No Distribution Assumptions**: Directly outputs hazard rates without assuming parametric distributions
+- **Variable-Length Support**: NEW! Handles variable-length sequences with automatic padding and masking
+- **Credit Card Fraud**: NEW! Complete simulator and dataset for credit card fraud detection
 - **Production-Ready**: Comprehensive tests, logging, and configuration management
 - **Flexible Architecture**: Easy to customize for different fraud detection scenarios
+
+## 🆕 Credit Card Fraud Detection
+
+We've extended the framework to handle credit card fraud with variable-length transaction sequences:
+
+### Features
+- **Variable-Length Sequences**: Cards with different lifetimes (4-208 weeks)
+- **Realistic Simulator**: Generate synthetic credit card transaction data
+- **10 Transaction Features**: Transaction counts, amounts, ratios, velocity
+- **Automatic Padding & Masking**: Transparent handling of variable-length data
+- **Survival Analysis**: Predict fraud before it occurs using hazard rates
+
+### Quick Start - Credit Cards
+
+```python
+from safe_fraud_detection.data.credit_card_simulator import CreditCardSimulator
+from safe_fraud_detection.data.dataset import CreditCardDataset
+from safe_fraud_detection.models.safe_model import SAFEModel
+
+# Simulate data
+simulator = CreditCardSimulator()
+sequences, events, times, lengths = simulator.simulate()
+
+# Create dataset (automatic padding/masking)
+dataset = CreditCardDataset(sequences, events, times)
+
+# Create model
+model = SAFEModel(input_dim=10, hidden_dim=64, num_layers=2)
+
+# Train with masks
+for sequence, mask, event, time, length in dataloader:
+    hazard_rates, survival_probs, _ = model(sequence, mask)
+    loss = criterion(hazard_rates, event, time, mask)
+```
+
+### Complete Credit Card Example
+
+```bash
+cd examples
+python credit_card_fraud_example.py
+```
+
+See **[CREDIT_CARD_FRAUD_GUIDE.md](CREDIT_CARD_FRAUD_GUIDE.md)** for complete documentation.
 
 ## Installation
 
@@ -143,11 +192,12 @@ safe-eval --model checkpoints/model.pt \
 ```
 safe_fraud_detection/
 ├── models/
-│   ├── safe_model.py          # SAFE model implementation
-│   └── loss.py                # Loss functions
+│   ├── safe_model.py          # SAFE model with mask support
+│   └── loss.py                # Loss functions with mask support
 ├── data/
-│   ├── dataset.py             # Dataset classes
-│   └── preprocessing.py       # Data preprocessing utilities
+│   ├── dataset.py             # Dataset classes (includes CreditCardDataset)
+│   ├── preprocessing.py       # Data preprocessing utilities
+│   └── credit_card_simulator.py  # NEW: Credit card data simulator
 ├── utils/
 │   ├── trainer.py             # Training utilities
 │   ├── metrics.py             # Evaluation metrics
@@ -158,7 +208,14 @@ safe_fraud_detection/
 ├── tests/
 │   ├── unit/                  # Unit tests
 │   └── integration/           # Integration tests
-└── configs/                   # Configuration files
+├── configs/
+│   ├── default_config.yaml
+│   ├── twitter_config.yaml
+│   ├── wiki_config.yaml
+│   └── credit_card_config.yaml  # NEW: Credit card config
+└── examples/
+    ├── example_usage.py
+    └── credit_card_fraud_example.py  # NEW: Complete credit card example
 ```
 
 ## Configuration
@@ -335,8 +392,17 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 For questions or issues, please open an issue on GitHub or contact [your.email@example.com](mailto:your.email@example.com).
 
+## Documentation
+
+- **[CREDIT_CARD_FRAUD_GUIDE.md](CREDIT_CARD_FRAUD_GUIDE.md)** - Complete guide for credit card fraud detection
+- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Technical implementation details
+- **[QUICKSTART.md](QUICKSTART.md)** - Quick start guide
+
 ## Roadmap
 
+- [x] Variable-length sequence support with masking
+- [x] Credit card fraud detection simulator
+- [x] Comprehensive credit card fraud example
 - [ ] Add support for attention mechanisms
 - [ ] Implement multi-task learning extensions
 - [ ] Add pre-trained models for common datasets

@@ -56,6 +56,7 @@ class SAFEModel(nn.Module):
     def forward(
         self, 
         x: torch.Tensor, 
+        mask: Optional[torch.Tensor] = None,
         hidden: Optional[torch.Tensor] = None
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
@@ -63,6 +64,8 @@ class SAFEModel(nn.Module):
         
         Args:
             x: Input tensor of shape (batch_size, seq_len, input_dim)
+            mask: Optional mask tensor of shape (batch_size, seq_len) 
+                 indicating valid positions (1) vs padding (0)
             hidden: Optional initial hidden state
             
         Returns:
@@ -80,6 +83,10 @@ class SAFEModel(nn.Module):
         hazard_logits = self.hazard_layer(gru_out).squeeze(-1)  # (batch_size, seq_len)
         hazard_rates = F.softplus(hazard_logits)  # λ_t = ln(1 + exp(w_λ * h_t))
         
+        # Apply mask to hazard rates if provided (zero out padding)
+        if mask is not None:
+            hazard_rates = hazard_rates * mask
+        
         # Calculate cumulative hazard for survival probability
         # S(t) = exp(-Σ λ_k for k=1 to t)
         cumulative_hazard = torch.cumsum(hazard_rates, dim=1)  # (batch_size, seq_len)
@@ -89,7 +96,8 @@ class SAFEModel(nn.Module):
     
     def predict(
         self, 
-        x: torch.Tensor, 
+        x: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
         threshold: float = 0.5,
         hidden: Optional[torch.Tensor] = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -98,6 +106,7 @@ class SAFEModel(nn.Module):
         
         Args:
             x: Input tensor of shape (batch_size, seq_len, input_dim)
+            mask: Optional mask tensor of shape (batch_size, seq_len)
             threshold: Survival probability threshold for classification
             hidden: Optional initial hidden state
             
@@ -107,9 +116,13 @@ class SAFEModel(nn.Module):
         """
         self.eval()
         with torch.no_grad():
-            _, survival_probs, _ = self.forward(x, hidden)
+            _, survival_probs, _ = self.forward(x, mask, hidden)
             # Predict as fraudster if survival probability < threshold
             predictions = (survival_probs < threshold).long()
+            
+            # Apply mask to predictions if provided
+            if mask is not None:
+                predictions = predictions * mask.long()
         
         return predictions, survival_probs
     

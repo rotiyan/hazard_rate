@@ -5,7 +5,7 @@ Includes both the early detection loss and regular survival analysis loss
 
 import torch
 import torch.nn as nn
-from typing import Tuple
+from typing import Tuple, Optional
 
 
 class SAFELoss(nn.Module):
@@ -36,7 +36,8 @@ class SAFELoss(nn.Module):
         self, 
         hazard_rates: torch.Tensor, 
         event_indicator: torch.Tensor, 
-        time_observed: torch.Tensor
+        time_observed: torch.Tensor,
+        mask: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
         Compute the SAFE loss for early detection.
@@ -47,6 +48,7 @@ class SAFELoss(nn.Module):
                            1 for fraudster (event), 0 for censored
             time_observed: Last observed time index for each sample (batch_size,)
                           Should be in range [1, seq_len]
+            mask: Optional mask tensor (batch_size, seq_len) indicating valid positions
             
         Returns:
             loss: Scalar loss value
@@ -59,20 +61,27 @@ class SAFELoss(nn.Module):
         seq_len = hazard_rates.shape[1]
         time_mask = torch.arange(seq_len, device=device).unsqueeze(0) < time_observed.unsqueeze(1)
         
+        # Combine with padding mask if provided
+        if mask is not None:
+            time_mask = time_mask.float() * mask
+        
         # Sum hazard rates up to observed time for each sample
         masked_hazards = hazard_rates * time_mask.float()
         sum_hazards = torch.sum(masked_hazards, dim=1)  # (batch_size,)
+        
+        # Clamp sum_hazards to avoid numerical issues
+        sum_hazards = torch.clamp(sum_hazards, min=self.epsilon, max=20.0)
         
         # Compute loss components
         # For all samples: Σλ_t
         loss_term1 = sum_hazards
         
         # For event samples: -ln(e^(Σλ_t) - 1)
-        # Using log-sum-exp trick for numerical stability
-        exp_sum_hazards = torch.exp(sum_hazards)
-        loss_term2 = -torch.log(exp_sum_hazards - 1.0 + self.epsilon)
+        # Rewrite as: -ln(e^(Σλ_t) - 1) = -Σλ_t - ln(1 - e^(-Σλ_t))
+        # This is more numerically stable
+        loss_term2 = -sum_hazards - torch.log(1.0 - torch.exp(-sum_hazards) + self.epsilon)
         
-        # Combine: L = Σλ_t - c_i * ln(e^(Σλ_t) - 1)
+        # Combine: L = Σλ_t - c_i * [Σλ_t + ln(1 - e^(-Σλ_t))]
         loss_per_sample = loss_term1 + event_indicator * loss_term2
         
         # Return mean loss over batch
@@ -103,7 +112,8 @@ class RegularSurvivalLoss(nn.Module):
         self, 
         hazard_rates: torch.Tensor, 
         event_indicator: torch.Tensor, 
-        time_observed: torch.Tensor
+        time_observed: torch.Tensor,
+        mask: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
         Compute the regular survival analysis loss.
@@ -112,6 +122,7 @@ class RegularSurvivalLoss(nn.Module):
             hazard_rates: Hazard rates at each timestamp (batch_size, seq_len)
             event_indicator: Binary indicator if event occurred (batch_size,)
             time_observed: Last observed time index for each sample (batch_size,)
+            mask: Optional mask tensor (batch_size, seq_len) indicating valid positions
             
         Returns:
             loss: Scalar loss value
@@ -123,18 +134,27 @@ class RegularSurvivalLoss(nn.Module):
         # Create mask for observed times
         time_mask = torch.arange(seq_len, device=device).unsqueeze(0) < time_observed.unsqueeze(1)
         
+        # Combine with padding mask if provided
+        if mask is not None:
+            time_mask = time_mask.float() * mask
+        
         # Sum hazard rates up to observed time
         masked_hazards = hazard_rates * time_mask.float()
         sum_hazards = torch.sum(masked_hazards, dim=1)  # (batch_size,)
+        
+        # Clamp for numerical stability
+        sum_hazards = torch.clamp(sum_hazards, min=self.epsilon, max=20.0)
         
         # Get hazard at the observed time
         # Need to gather the hazard at time_observed - 1 (0-indexed)
         time_indices = (time_observed - 1).clamp(min=0, max=seq_len-1).unsqueeze(1)
         hazard_at_time = torch.gather(hazard_rates, 1, time_indices).squeeze(1)
+        hazard_at_time = torch.clamp(hazard_at_time, min=self.epsilon, max=10.0)
         
-        # Compute loss
+        # Compute loss with numerical stability
         loss_term1 = sum_hazards
-        loss_term2 = -torch.log(torch.exp(hazard_at_time) - 1.0 + self.epsilon)
+        # Rewrite: -ln(e^λ - 1) = -λ - ln(1 - e^(-λ))
+        loss_term2 = -hazard_at_time - torch.log(1.0 - torch.exp(-hazard_at_time) + self.epsilon)
         
         loss_per_sample = loss_term1 + event_indicator * loss_term2
         
@@ -162,7 +182,8 @@ class WeightedSAFELoss(nn.Module):
         self, 
         hazard_rates: torch.Tensor, 
         event_indicator: torch.Tensor, 
-        time_observed: torch.Tensor
+        time_observed: torch.Tensor,
+        mask: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """Compute weighted SAFE loss."""
         batch_size = hazard_rates.shape[0]
@@ -171,13 +192,21 @@ class WeightedSAFELoss(nn.Module):
         
         # Create mask and compute sum of hazards
         time_mask = torch.arange(seq_len, device=device).unsqueeze(0) < time_observed.unsqueeze(1)
+        
+        # Combine with padding mask if provided
+        if mask is not None:
+            time_mask = time_mask.float() * mask
+        
         masked_hazards = hazard_rates * time_mask.float()
         sum_hazards = torch.sum(masked_hazards, dim=1)
         
-        # Compute loss components
+        # Clamp for numerical stability
+        sum_hazards = torch.clamp(sum_hazards, min=self.epsilon, max=20.0)
+        
+        # Compute loss components with numerical stability
         loss_term1 = sum_hazards
-        exp_sum_hazards = torch.exp(sum_hazards)
-        loss_term2 = -torch.log(exp_sum_hazards - 1.0 + self.epsilon)
+        # Rewrite: -ln(e^(Σλ) - 1) = -Σλ - ln(1 - e^(-Σλ))
+        loss_term2 = -sum_hazards - torch.log(1.0 - torch.exp(-sum_hazards) + self.epsilon)
         
         loss_per_sample = loss_term1 + event_indicator * loss_term2
         
