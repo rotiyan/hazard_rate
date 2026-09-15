@@ -47,6 +47,9 @@ class TrainingConfig:
     gradient_clip: Optional[float] = 5.0
     weight_decay: float = 0.0
     optimizer: str = 'adam'
+    lr_scheduler: Optional[str] = None  # None or 'plateau' (ReduceLROnPlateau on validation loss)
+    scheduler_factor: float = 0.5
+    scheduler_patience: int = 5
 
 
 @dataclass
@@ -54,6 +57,7 @@ class DataConfig:
     """Data preprocessing configuration."""
     normalize: str = 'standard'  # 'standard', 'minmax', or None
     handle_nan: str = 'zero'  # 'zero', 'mean', 'forward_fill'
+    clip_outliers: Optional[float] = None  # Clip values beyond this many std devs
     train_ratio: float = 0.7
     val_ratio: float = 0.1
     test_ratio: float = 0.2
@@ -63,10 +67,11 @@ class DataConfig:
 @dataclass
 class LossConfig:
     """Loss function configuration."""
-    loss_type: str = 'safe'  # 'safe' or 'regular'
+    loss_type: str = 'safe'  # 'safe', 'regular', or 'weighted'
     epsilon: float = 1e-7
     event_weight: float = 1.0
     censored_weight: float = 1.0
+    auto_weight: bool = False  # For 'weighted': balance class weights from the training split
 
 
 @dataclass

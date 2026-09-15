@@ -18,6 +18,26 @@ Run it:
 python examples/example_usage.py
 ```
 
+### 2. Credit Card Fraud (`credit_card_fraud_example.py`)
+
+Simulates variable-length weekly transaction histories, trains with `credit_card_config.yaml`, prints metrics at several weeks plus a threshold table, and saves plots and the model to `outputs/`:
+
+```bash
+python examples/credit_card_fraud_example.py
+
+# Quick run
+python examples/credit_card_fraud_example.py --num-cards 500 --max-weeks 52 --epochs 5
+```
+
+### 3. Your Own Credit Card Data (`prepare_and_train_custom_data.py`)
+
+Builds sequences from a weekly features table and a close-dates table, then trains and evaluates:
+
+```bash
+python examples/prepare_and_train_custom_data.py \
+    --features features.csv --close-dates close_dates.csv
+```
+
 ## Creating Your Own Dataset
 
 To use SAFE with your own data, prepare it in the following format:
@@ -61,7 +81,7 @@ dataset = SurvivalDataset(
    - Cumulative statistics
    - Time since last action
 
-2. **Normalization**: Always normalize your features
+2. **Normalization**: Always normalize your features, fitting on the training split only (`safe_fraud_detection.pipeline.prepare_dataloaders` does this for you)
    ```python
    from safe_fraud_detection.data.preprocessing import SequencePreprocessor
    

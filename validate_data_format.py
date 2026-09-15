@@ -8,7 +8,6 @@ Run this script with your data to check if it's in the correct format.
 """
 
 import numpy as np
-import torch
 from safe_fraud_detection.data.dataset import CreditCardDataset, validate_and_convert_sequences
 from torch.utils.data import DataLoader
 
@@ -146,17 +145,9 @@ def check_data_format(sequences, event_indicators, time_observed):
         
         # Test DataLoader
         print("\n7. Testing DataLoader...")
-        def collate_fn(batch):
-            sequences, masks, events, times, lengths = zip(*batch)
-            return (
-                torch.stack(sequences),
-                torch.stack(masks),
-                torch.cat(events) if events[0].dim() > 0 else torch.stack(events),
-                torch.cat(times) if times[0].dim() > 0 else torch.stack(times),
-                torch.cat(lengths) if lengths[0].dim() > 0 else torch.stack(lengths)
-            )
+        # Samples are already padded, so the default collation works
         
-        dataloader = DataLoader(dataset, batch_size=2, shuffle=False, collate_fn=collate_fn)
+        dataloader = DataLoader(dataset, batch_size=2, shuffle=False)
         
         # Get one batch
         batch = next(iter(dataloader))

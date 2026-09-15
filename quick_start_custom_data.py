@@ -80,11 +80,7 @@ print("="*60)
 
 from safe_fraud_detection.data.dataset import CreditCardDataset
 
-dataset = CreditCardDataset(
-    sequences=sequences,
-    event_indicators=event_indicators,
-    time_observed=time_observed
-)
+dataset = CreditCardDataset(sequences, event_indicators, time_observed)
 
 print(f"Dataset created successfully!")
 print(f"Dataset statistics:")
@@ -97,7 +93,8 @@ print("Data preparation complete!")
 print("="*60)
 print("\nNext steps:")
 print("1. Review the dataset statistics above")
-print("2. Use examples/prepare_and_train_custom_data.py to train the model")
+print("2. Or prepare and train in one step:")
+print("   python examples/prepare_and_train_custom_data.py --features <features> --close-dates <close_dates>")
 print("3. Or train from the command line:")
 print("   safe-train --config safe_fraud_detection/configs/credit_card_config.yaml --data prepared_data.npz")
 

@@ -2,26 +2,20 @@
 Training script for SAFE model
 """
 
-import os
 import sys
 import argparse
 import logging
 from pathlib import Path
 
-import torch
-from torch.utils.data import DataLoader
+import numpy as np
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from safe_fraud_detection.models.safe_model import SAFEModel
-from safe_fraud_detection.models.loss import SAFELoss, RegularSurvivalLoss, WeightedSAFELoss
-from safe_fraud_detection.data.dataset import SurvivalDataset
 from safe_fraud_detection.data.npz_io import load_npz_data
-from safe_fraud_detection.data.preprocessing import SequencePreprocessor, create_train_val_test_split
-from safe_fraud_detection.utils.trainer import SAFETrainer
+from safe_fraud_detection.pipeline import build_model, build_trainer, prepare_dataloaders, save_model
 from safe_fraud_detection.utils.metrics import evaluate_at_timestamps
-from safe_fraud_detection.utils.config import Config
+from safe_fraud_detection.utils.config import Config, resolve_device
 
 
 # Setup logging
@@ -32,187 +26,49 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def load_data(data_path: str, config: Config):
-    """
-    Load and preprocess data.
-    
-    Args:
-        data_path: Path to data file
-        config: Configuration object
-        
-    Returns:
-        train_loader, val_loader, test_loader, preprocessor
-    """
-    logger.info(f"Loading data from {data_path}")
-    
-    # Expected format: .npz with sequences (N, T, F) or variable-length sequences,
-    # events (N,), times (N,) - see safe_fraud_detection.data.npz_io
-    
-    sequences, events, times = load_npz_data(data_path)
-    
-    logger.info(f"Loaded {len(sequences)} samples")
+def main():
+    parser = argparse.ArgumentParser(description='Train SAFE model')
+    parser.add_argument('--config', type=str, default=None, help='Path to config file')
+    parser.add_argument('--data', type=str, required=True, help='Path to .npz data file')
+    parser.add_argument('--output', type=str, default='checkpoints/safe_model.pt', help='Output path for model')
+    parser.add_argument('--device', type=str, default=None, help="Device ('auto', 'cuda' or 'cpu')")
+
+    args = parser.parse_args()
+
+    # Load config
+    config = Config.from_yaml(args.config) if args.config else Config()
+    if args.device:
+        config.device = resolve_device(args.device)
+
+    logger.info(f"Using device: {config.device}")
+
+    # Load data (fixed-length array or list of variable-length sequences)
+    logger.info(f"Loading data from {args.data}")
+    sequences, events, times = load_npz_data(args.data)
+    logger.info(f"Loaded {len(events)} samples")
 
     # The model's input size must match the data; the saved config then records it
-    num_features = sequences.shape[2]
+    num_features = np.asarray(sequences[0]).shape[-1]
     if config.model.input_dim != num_features:
         logger.warning(
             f"Config model.input_dim={config.model.input_dim} but data has "
             f"{num_features} features; using {num_features}"
         )
         config.model.input_dim = num_features
-    
-    # Split data
-    train_data, val_data, test_data = create_train_val_test_split(
-        sequences, events, times,
-        train_ratio=config.data.train_ratio,
-        val_ratio=config.data.val_ratio,
-        test_ratio=config.data.test_ratio,
-        random_seed=config.data.random_seed
-    )
-    
-    # Preprocess
-    preprocessor = SequencePreprocessor(
-        normalize=config.data.normalize,
-        handle_nan=config.data.handle_nan
-    )
-    
-    train_sequences, train_events, train_times = train_data
-    train_sequences = preprocessor.fit_transform(train_sequences)
-    
-    val_sequences, val_events, val_times = val_data
-    val_sequences = preprocessor.transform(val_sequences)
-    
-    test_sequences, test_events, test_times = test_data
-    test_sequences = preprocessor.transform(test_sequences)
-    
-    # Create datasets
-    train_dataset = SurvivalDataset(train_sequences, train_events, train_times)
-    val_dataset = SurvivalDataset(val_sequences, val_events, val_times)
-    test_dataset = SurvivalDataset(test_sequences, test_events, test_times)
-    
-    # Create data loaders
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=config.training.batch_size,
-        shuffle=True,
-        num_workers=0
-    )
-    
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=config.training.batch_size,
-        shuffle=False,
-        num_workers=0
-    )
-    
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=config.training.batch_size,
-        shuffle=False,
-        num_workers=0
-    )
-    
-    logger.info(f"Train: {len(train_dataset)}, Val: {len(val_dataset)}, Test: {len(test_dataset)}")
-    logger.info(f"Train stats: {train_dataset.get_statistics()}")
-    
-    return train_loader, val_loader, test_loader, preprocessor
 
-
-def create_model_and_optimizer(config: Config):
-    """
-    Create model, loss function, and optimizer.
-    
-    Args:
-        config: Configuration object
-        
-    Returns:
-        model, loss_fn, optimizer
-    """
-    # Create model
-    model = SAFEModel(
-        input_dim=config.model.input_dim,
-        hidden_dim=config.model.hidden_dim,
-        num_layers=config.model.num_layers,
-        dropout=config.model.dropout
-    )
-    
-    logger.info(f"Model created with {sum(p.numel() for p in model.parameters())} parameters")
-    
-    # Create loss function
-    if config.loss.loss_type == 'safe':
-        loss_fn = SAFELoss(epsilon=config.loss.epsilon)
-    elif config.loss.loss_type == 'regular':
-        loss_fn = RegularSurvivalLoss(epsilon=config.loss.epsilon)
-    elif config.loss.loss_type == 'weighted':
-        loss_fn = WeightedSAFELoss(
-            event_weight=config.loss.event_weight,
-            censored_weight=config.loss.censored_weight,
-            epsilon=config.loss.epsilon
-        )
-    else:
-        raise ValueError(f"Unknown loss type: {config.loss.loss_type}")
-    
-    # Create optimizer
-    if config.training.optimizer.lower() == 'adam':
-        optimizer = torch.optim.Adam(
-            model.parameters(),
-            lr=config.training.learning_rate,
-            weight_decay=config.training.weight_decay
-        )
-    elif config.training.optimizer.lower() == 'sgd':
-        optimizer = torch.optim.SGD(
-            model.parameters(),
-            lr=config.training.learning_rate,
-            momentum=0.9,
-            weight_decay=config.training.weight_decay
-        )
-    else:
-        raise ValueError(f"Unknown optimizer: {config.training.optimizer}")
-    
-    return model, loss_fn, optimizer
-
-
-def main():
-    parser = argparse.ArgumentParser(description='Train SAFE model')
-    parser.add_argument('--config', type=str, default=None, help='Path to config file')
-    parser.add_argument('--data', type=str, required=True, help='Path to data file')
-    parser.add_argument('--output', type=str, default='checkpoints/safe_model.pt', help='Output path for model')
-    parser.add_argument('--device', type=str, default=None, help='Device (cuda/cpu)')
-    
-    args = parser.parse_args()
-    
-    # Load config
-    if args.config:
-        config = Config.from_yaml(args.config)
-    else:
-        config = Config()
-    
-    if args.device:
-        config.device = args.device
-    
-    logger.info(f"Using device: {config.device}")
     logger.info(f"Configuration: {config.to_dict()}")
-    
-    # Create output directory
-    output_dir = os.path.dirname(args.output)
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
-    
-    # Load data
-    train_loader, val_loader, test_loader, preprocessor = load_data(args.data, config)
-    
-    # Create model, loss, optimizer
-    model, loss_fn, optimizer = create_model_and_optimizer(config)
-    
-    # Create trainer
-    trainer = SAFETrainer(
-        model=model,
-        loss_fn=loss_fn,
-        optimizer=optimizer,
-        device=config.device,
-        gradient_clip=config.training.gradient_clip
+
+    # Split, fit preprocessing on the training split, and build loaders
+    train_loader, val_loader, test_loader, preprocessor = prepare_dataloaders(
+        sequences, events, times, config
     )
-    
+    logger.info(f"Train stats: {train_loader.dataset.get_statistics()}")
+
+    # Create model and trainer
+    model = build_model(config)
+    logger.info(f"Model created with {sum(p.numel() for p in model.parameters())} parameters")
+    trainer = build_trainer(config, model, train_events=train_loader.dataset.events)
+
     # Train
     logger.info("Starting training...")
     history = trainer.fit(
@@ -223,9 +79,9 @@ def main():
         save_best=True,
         verbose=True
     )
-    
+
     logger.info(f"Training completed. Best val loss: {history['best_val_loss']:.4f}")
-    
+
     # Evaluate on test set
     logger.info("Evaluating on test set...")
     metrics = evaluate_at_timestamps(
@@ -235,17 +91,19 @@ def main():
         threshold=config.evaluation.threshold,
         device=config.device
     )
-    
+
     metrics.print_summary()
-    
-    # Save model
-    torch.save({
-        'model_state_dict': model.state_dict(),
-        'config': config.to_dict(),
-        'metrics': metrics.get_early_detection_summary(),
-        'history': history
-    }, args.output)
-    
+
+    # Save model with its config and fitted preprocessing
+    save_model(
+        args.output,
+        model,
+        config,
+        preprocessor,
+        metrics=metrics.get_early_detection_summary(),
+        history=history
+    )
+
     logger.info(f"Model saved to {args.output}")
 
 

@@ -5,7 +5,7 @@ Includes both the early detection loss and regular survival analysis loss
 
 import torch
 import torch.nn as nn
-from typing import Optional
+from typing import Optional, Tuple
 
 
 def _sum_observed_hazards(
@@ -200,3 +200,24 @@ class WeightedSAFELoss(nn.Module):
         )
 
         return torch.mean(loss_per_sample * weights)
+
+
+def balanced_class_weights(events) -> Tuple[float, float]:
+    """
+    Class weights that give fraud and censored samples equal total weight.
+
+    Args:
+        events: Event indicators (1=fraud, 0=censored)
+
+    Returns:
+        (event_weight, censored_weight), each N / (2 * class count), or 1.0
+        for a class with no samples
+    """
+    events = torch.as_tensor(events, dtype=torch.float32)
+    num_samples = len(events)
+    num_events = events.sum().item()
+    num_censored = num_samples - num_events
+
+    event_weight = num_samples / (2 * num_events) if num_events > 0 else 1.0
+    censored_weight = num_samples / (2 * num_censored) if num_censored > 0 else 1.0
+    return event_weight, censored_weight

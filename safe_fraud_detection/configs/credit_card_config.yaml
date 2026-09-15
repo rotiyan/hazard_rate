@@ -15,10 +15,14 @@ training:
   gradient_clip: 1.0  # Max gradient norm
   weight_decay: 1.0e-5
   optimizer: 'adam'  # 'adam' or 'sgd'
+  lr_scheduler: 'plateau'  # null or 'plateau' (ReduceLROnPlateau on validation loss)
+  scheduler_factor: 0.5
+  scheduler_patience: 5
 
 data:
   normalize: 'standard'  # 'standard', 'minmax', or null
   handle_nan: 'zero'  # 'zero', 'mean', 'forward_fill'
+  clip_outliers: 3.0  # Clip values beyond this many standard deviations
   train_ratio: 0.70
   val_ratio: 0.15
   test_ratio: 0.15
@@ -27,9 +31,10 @@ data:
 loss:
   loss_type: 'weighted'  # 'safe', 'regular', or 'weighted'
   epsilon: 1.0e-7
-  # For imbalanced data, set roughly: event_weight = N / (2 * num_fraud),
-  # censored_weight = N / (2 * num_censored)
-  event_weight: 1.0
+  # Balance fraud and censored cards from the training split:
+  # event_weight = N / (2 * num_fraud), censored_weight = N / (2 * num_censored)
+  auto_weight: true
+  event_weight: 1.0  # Used when auto_weight is false
   censored_weight: 1.0
 
 evaluation:

@@ -1,7 +1,7 @@
 """Data loading and preprocessing utilities."""
 
 from .dataset import (
-    FraudDataset,
+    SurvivalBatch,
     SurvivalDataset,
     CreditCardDataset,
     TwitterDataset,
@@ -12,7 +12,7 @@ from .preprocessing import SequencePreprocessor
 from .npz_io import load_npz_data, save_npz_data
 
 __all__ = [
-    "FraudDataset",
+    "SurvivalBatch",
     "SurvivalDataset",
     "CreditCardDataset",
     "TwitterDataset",

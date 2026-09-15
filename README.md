@@ -96,6 +96,38 @@ pip install -e .
 
 ## Quick Start
 
+### End-to-End Pipeline
+
+`safe_fraud_detection.pipeline` builds everything from a config. It works with fixed-length arrays and with lists of variable-length sequences:
+
+```python
+from safe_fraud_detection.pipeline import build_model, build_trainer, prepare_dataloaders, save_model
+from safe_fraud_detection.utils.config import Config
+from safe_fraud_detection.utils.metrics import evaluate_at_timestamps
+
+config = Config.from_yaml('safe_fraud_detection/configs/credit_card_config.yaml')
+config.model.input_dim = sequences[0].shape[-1]
+
+# Splits the data and fits preprocessing on the training split only
+train_loader, val_loader, test_loader, preprocessor = prepare_dataloaders(
+    sequences, events, times, config
+)
+
+model = build_model(config)
+trainer = build_trainer(config, model, train_events=train_loader.dataset.events)
+history = trainer.fit(train_loader, val_loader, epochs=config.training.epochs,
+                      early_stopping_patience=config.training.early_stopping_patience)
+
+metrics = evaluate_at_timestamps(model, test_loader, config.evaluation.eval_timestamps,
+                                 config.evaluation.threshold, config.device)
+metrics.print_summary()
+
+# Saves weights, config and preprocessing together; reload with pipeline.load_model
+save_model('checkpoints/model.pt', model, config, preprocessor, history=history)
+```
+
+Datasets pad sequences and return `SurvivalBatch` named tuples with `sequences`, `masks`, `events`, `times` and `lengths`; the trainer and metrics pass the masks through so padding never affects results.
+
 ### Training a Model
 
 ```python

@@ -24,16 +24,16 @@ class TestNpzIO(unittest.TestCase):
     def tearDown(self):
         self.tmp_dir.cleanup()
 
-    def test_variable_length_round_trip_is_padded(self):
-        """Test variable-length sequences are padded with NaN on load."""
-        sequences = [np.ones((3, 2)), np.ones((5, 2))]
+    def test_variable_length_round_trip(self):
+        """Test variable-length sequences load back as an unpadded list."""
+        sequences = [np.ones((3, 2)), np.full((5, 2), 2.0)]
         save_npz_data(self.path, sequences, np.array([1, 0]), np.array([3, 5]))
 
         loaded, events, times = load_npz_data(self.path)
 
-        self.assertEqual(loaded.shape, (2, 5, 2))
-        self.assertTrue(np.all(np.isnan(loaded[0, 3:])))
-        np.testing.assert_array_equal(loaded[1], np.ones((5, 2)))
+        self.assertIsInstance(loaded, list)
+        self.assertEqual([seq.shape for seq in loaded], [(3, 2), (5, 2)])
+        np.testing.assert_array_equal(loaded[1], sequences[1])
         np.testing.assert_array_equal(events, [1, 0])
         np.testing.assert_array_equal(times, [3, 5])
 
@@ -44,7 +44,7 @@ class TestNpzIO(unittest.TestCase):
 
         loaded, _, _ = load_npz_data(self.path)
 
-        np.testing.assert_array_equal(loaded, np.stack(sequences))
+        np.testing.assert_array_equal(np.stack(loaded), np.stack(sequences))
 
     def test_fixed_length_array_round_trip(self):
         """Test a 3D array loads back unchanged."""

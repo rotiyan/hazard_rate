@@ -2,14 +2,14 @@
 Saving and loading survival data as .npz files
 
 Standard keys are 'sequences', 'events' and 'times'. Variable-length sequences
-are stored as an object array and padded when loaded.
+are stored as an object array and loaded back as a list of 2D arrays.
 """
 
 import os
 import numpy as np
-from typing import List, Tuple, Union
+from typing import Tuple
 
-from .preprocessing import pad_sequences
+from .preprocessing import Sequences
 
 
 EVENT_KEYS = ('events', 'event_indicators')
@@ -18,7 +18,7 @@ TIME_KEYS = ('times', 'time_observed')
 
 def save_npz_data(
     path: str,
-    sequences: Union[List[np.ndarray], np.ndarray],
+    sequences: Sequences,
     events: np.ndarray,
     times: np.ndarray
 ) -> None:
@@ -43,25 +43,21 @@ def save_npz_data(
     np.savez(path, sequences=sequences_array, events=np.asarray(events), times=np.asarray(times))
 
 
-def load_npz_data(
-    path: str,
-    padding_value: float = np.nan
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def load_npz_data(path: str) -> Tuple[Sequences, np.ndarray, np.ndarray]:
     """
     Load survival data saved with save_npz_data (or np.savez).
 
     Accepts 'events'/'event_indicators' and 'times'/'time_observed' as key names.
-    Variable-length sequences are padded to the longest sequence. Padding defaults
-    to NaN so SequencePreprocessor.fit ignores it when computing statistics.
+    Variable-length sequences come back as a list of 2D arrays, which
+    SequencePreprocessor and SurvivalDataset accept directly.
 
     Note: loading object arrays uses pickle, so only load files you trust.
 
     Args:
         path: Path to .npz file
-        padding_value: Value used to pad variable-length sequences
 
     Returns:
-        sequences (num_samples, max_seq_len, num_features), events, times
+        sequences (3D array or list of 2D arrays), events, times
     """
     if not os.path.exists(path):
         raise FileNotFoundError(f"Data file not found: {path}")
@@ -75,7 +71,7 @@ def load_npz_data(
     times = _get_first_key(data, TIME_KEYS, path)
 
     if sequences.dtype == object:
-        sequences = pad_sequences(list(sequences), padding_value=padding_value)
+        sequences = [np.asarray(seq) for seq in sequences]
 
     return sequences, events, times
 

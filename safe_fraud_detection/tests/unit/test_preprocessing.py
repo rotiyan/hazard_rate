@@ -87,9 +87,10 @@ class TestSequencePreprocessor(unittest.TestCase):
         preprocessor = SequencePreprocessor(normalize='minmax')
         transformed = preprocessor.fit_transform(self.sequences)
         
-        # Values should be between 0 and 1
-        self.assertGreaterEqual(transformed.min(), 0.0)
-        self.assertLessEqual(transformed.max(), 1.0)
+        # Values should be between 0 and 1, up to floating-point rounding
+        # (sklearn's MinMaxScaler can return 1.0000000000000002)
+        self.assertGreaterEqual(transformed.min(), -1e-12)
+        self.assertLessEqual(transformed.max(), 1.0 + 1e-12)
     
     def test_no_normalization(self):
         """Test with normalization disabled."""

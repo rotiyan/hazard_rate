@@ -189,7 +189,7 @@ class TestEndToEndWorkflow(unittest.TestCase):
         self.model.eval()
         
         # Get a batch
-        sequences, _, _ = next(iter(self.test_loader))
+        sequences = next(iter(self.test_loader)).sequences
         
         # Get predictions
         _, survival_probs, _ = self.model(sequences)
