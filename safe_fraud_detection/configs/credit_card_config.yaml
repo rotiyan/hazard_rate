@@ -1,0 +1,109 @@
+# Configuration for Credit Card Fraud Detection
+# This configuration defines parameters for the SAFE model applied to credit card fraud
+
+# Data Simulation Parameters
+simulation:
+  num_cards: 2000
+  max_weeks: 208  # 4 years (52 weeks * 4)
+  fraud_rate: 0.15  # 15% of cards experience fraud
+  avg_weeks_to_fraud: 52  # Average 1 year until fraud
+  std_weeks_to_fraud: 26  # Standard deviation
+  early_closure_rate: 0.10  # 10% close early for non-fraud reasons
+  random_seed: 42
+
+# Data Preprocessing
+preprocessing:
+  normalize: 'standard'  # Options: 'standard', 'minmax', null
+  handle_nan: 'zero'  # Options: 'zero', 'mean', 'forward_fill'
+  clip_outliers: 3.0  # Clip values beyond this many standard deviations
+
+# Data Split
+data_split:
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+  random_seed: 42
+
+# Model Architecture
+model:
+  input_dim: 10  # Number of features per week
+  hidden_dim: 64  # GRU hidden dimension
+  num_layers: 2  # Number of GRU layers
+  dropout: 0.2  # Dropout rate
+
+# Loss Function
+loss:
+  type: 'weighted_safe'  # Options: 'safe', 'regular_survival', 'weighted_safe'
+  epsilon: 1.0e-7  # Small constant for numerical stability
+  auto_weight: true  # Automatically calculate class weights
+  event_weight: 1.0  # Weight for fraud samples (if auto_weight is false)
+  censored_weight: 1.0  # Weight for censored samples (if auto_weight is false)
+
+# Training Parameters
+training:
+  batch_size: 32
+  num_epochs: 100
+  learning_rate: 0.001
+  weight_decay: 1.0e-5
+  gradient_clip: 1.0  # Max gradient norm
+  early_stopping_patience: 15
+
+# Learning Rate Scheduler
+scheduler:
+  type: 'reduce_on_plateau'  # Options: 'reduce_on_plateau', 'step', 'cosine'
+  mode: 'min'
+  factor: 0.5
+  patience: 5
+  min_lr: 1.0e-6
+
+# Optimizer
+optimizer:
+  type: 'adam'  # Options: 'adam', 'sgd', 'adamw'
+  momentum: 0.9  # For SGD
+  betas: [0.9, 0.999]  # For Adam/AdamW
+
+# Evaluation
+evaluation:
+  threshold: 0.5  # Survival probability threshold for fraud detection
+  metrics:
+    - 'accuracy'
+    - 'precision'
+    - 'recall'
+    - 'f1'
+    - 'auc'
+    - 'early_detection_rate'
+    - 'avg_weeks_early'
+
+# Feature Names (for reference)
+features:
+  - 'txn_count'  # Number of transactions per week
+  - 'total_amount'  # Sum of transaction amounts
+  - 'avg_amount'  # Average transaction amount
+  - 'max_amount'  # Maximum single transaction
+  - 'std_amount'  # Standard deviation of amounts
+  - 'foreign_ratio'  # Proportion of international transactions
+  - 'online_ratio'  # Proportion of online transactions
+  - 'weekend_ratio'  # Proportion on weekends
+  - 'night_ratio'  # Proportion during night hours
+  - 'velocity'  # Change in transaction count from previous week
+
+# Paths
+paths:
+  data_dir: 'data'
+  checkpoint_dir: 'checkpoints'
+  log_dir: 'logs'
+  output_dir: 'outputs'
+
+# Logging
+logging:
+  log_interval: 10  # Log every N epochs
+  save_interval: 20  # Save checkpoint every N epochs
+  tensorboard: true  # Use TensorBoard logging
+  wandb: false  # Use Weights & Biases logging
+
+# Device
+device: 'cuda'  # Options: 'cuda', 'cpu', 'auto'
+
+# Reproducibility
+seed: 42
+deterministic: true  # Use deterministic algorithms (may be slower)

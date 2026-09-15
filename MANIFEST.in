@@ -1,0 +1,6 @@
+include README.md
+include LICENSE
+include requirements.txt
+include pytest.ini
+recursive-include safe_fraud_detection/configs *.yaml
+recursive-include safe_fraud_detection/tests *.py
