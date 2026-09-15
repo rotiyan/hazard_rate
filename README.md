@@ -4,7 +4,7 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A production-ready PyTorch implementation of SAFE (Survival Analysis for Fraud Early detection), based on the paper ["SAFE: A Neural Survival Analysis Model for Fraud Early Detection"](https://arxiv.org/abs/1809.04683) by Panpan Zheng, Shuhan Yuan, and Xintao Wu (AAAI 2019).
+PyTorch implementation of SAFE (Survival Analysis for Fraud Early detection), based on the paper ["SAFE: A Neural Survival Analysis Model for Fraud Early Detection"](https://arxiv.org/abs/1809.04683) by Panpan Zheng, Shuhan Yuan, and Xintao Wu (AAAI 2019).
 
 ## Overview
 
@@ -73,7 +73,7 @@ See **[CREDIT_CARD_FRAUD_GUIDE.md](CREDIT_CARD_FRAUD_GUIDE.md)** for complete do
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/safe-fraud-detection.git
+git clone https://github.com/rotiyan/safe-fraud-detection.git
 cd safe-fraud-detection
 
 # Create and activate conda environment
@@ -388,10 +388,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 - Implementation inspired by the paper's methodology
 - PyTorch team for the deep learning framework
 
-## Contact
-
-For questions or issues, please open an issue on GitHub or contact [your.email@example.com](mailto:your.email@example.com).
-
 ## Documentation
 
 - **[CREDIT_CARD_FRAUD_GUIDE.md](CREDIT_CARD_FRAUD_GUIDE.md)** - Complete guide for credit card fraud detection
@@ -404,11 +400,6 @@ For questions or issues, please open an issue on GitHub or contact [your.email@e
 - [x] Credit card fraud detection simulator
 - [x] Comprehensive credit card fraud example
 - [ ] Add support for attention mechanisms
-- [ ] Implement multi-task learning extensions
 - [ ] Add pre-trained models for common datasets
 - [ ] Develop interactive visualization tools
 - [ ] Add ONNX export for deployment
-
----
-
-**Note**: This is a research implementation. For production use, please ensure thorough testing on your specific use case.
