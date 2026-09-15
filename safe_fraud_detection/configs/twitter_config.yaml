@@ -36,4 +36,4 @@ evaluation:
 data_path: 'data/twitter_data.npz'
 checkpoint_dir: 'checkpoints/twitter/'
 log_dir: 'logs/twitter/'
-device: 'cuda'
+device: 'auto'

@@ -10,7 +10,6 @@ from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader
-import numpy as np
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -18,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from safe_fraud_detection.models.safe_model import SAFEModel
 from safe_fraud_detection.models.loss import SAFELoss, RegularSurvivalLoss, WeightedSAFELoss
 from safe_fraud_detection.data.dataset import SurvivalDataset
+from safe_fraud_detection.data.npz_io import load_npz_data
 from safe_fraud_detection.data.preprocessing import SequencePreprocessor, create_train_val_test_split
 from safe_fraud_detection.utils.trainer import SAFETrainer
 from safe_fraud_detection.utils.metrics import evaluate_at_timestamps
@@ -45,20 +45,21 @@ def load_data(data_path: str, config: Config):
     """
     logger.info(f"Loading data from {data_path}")
     
-    # Load your data here - this is a placeholder
-    # You should replace this with actual data loading logic
-    # Expected format: sequences (N, T, F), events (N,), times (N,)
+    # Expected format: .npz with sequences (N, T, F) or variable-length sequences,
+    # events (N,), times (N,) - see safe_fraud_detection.data.npz_io
     
-    # For demonstration, we'll show how to load from numpy files
-    if os.path.exists(data_path):
-        data = np.load(data_path, allow_pickle=True)
-        sequences = data['sequences']
-        events = data['events']
-        times = data['times']
-    else:
-        raise FileNotFoundError(f"Data file not found: {data_path}")
+    sequences, events, times = load_npz_data(data_path)
     
     logger.info(f"Loaded {len(sequences)} samples")
+
+    # The model's input size must match the data; the saved config then records it
+    num_features = sequences.shape[2]
+    if config.model.input_dim != num_features:
+        logger.warning(
+            f"Config model.input_dim={config.model.input_dim} but data has "
+            f"{num_features} features; using {num_features}"
+        )
+        config.model.input_dim = num_features
     
     # Split data
     train_data, val_data, test_data = create_train_val_test_split(
@@ -193,7 +194,9 @@ def main():
     logger.info(f"Configuration: {config.to_dict()}")
     
     # Create output directory
-    os.makedirs(os.path.dirname(args.output), exist_ok=True)
+    output_dir = os.path.dirname(args.output)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
     
     # Load data
     train_loader, val_loader, test_loader, preprocessor = load_data(args.data, config)

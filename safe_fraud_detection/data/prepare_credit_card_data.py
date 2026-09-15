@@ -223,7 +223,7 @@ if __name__ == "__main__":
     print("="*60)
     print("""
     import pandas as pd
-    from prepare_credit_card_data import prepare_credit_card_data
+    from safe_fraud_detection.data.prepare_credit_card_data import prepare_credit_card_data
     
     # Load your dataframes
     features_df = pd.read_csv('your_features.csv')  # or pd.read_parquet, etc.

@@ -36,4 +36,4 @@ evaluation:
 data_path: 'data/wiki_data.npz'
 checkpoint_dir: 'checkpoints/wiki/'
 log_dir: 'logs/wiki/'
-device: 'cuda'
+device: 'auto'

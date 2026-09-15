@@ -5,8 +5,8 @@ Simply update the file paths and column names below, then run this script.
 """
 
 import pandas as pd
-import numpy as np
-from prepare_credit_card_data import prepare_credit_card_data
+from safe_fraud_detection.data.prepare_credit_card_data import prepare_credit_card_data
+from safe_fraud_detection.data.npz_io import save_npz_data
 
 # ============================================================================
 # STEP 1: UPDATE THESE PATHS AND COLUMN NAMES TO MATCH YOUR DATA
@@ -63,10 +63,8 @@ print("\n" + "="*60)
 print("Saving prepared data...")
 print("="*60)
 
-np.savez('prepared_data.npz', 
-         sequences=sequences,
-         event_indicators=event_indicators,
-         time_observed=time_observed)
+# Variable-length sequences are stored so safe-train can load and pad them
+save_npz_data('prepared_data.npz', sequences, event_indicators, time_observed)
 
 print("Prepared data saved to: prepared_data.npz")
 print("\nYou can now use this data to train the model.")
@@ -100,6 +98,7 @@ print("="*60)
 print("\nNext steps:")
 print("1. Review the dataset statistics above")
 print("2. Use examples/prepare_and_train_custom_data.py to train the model")
-print("3. Or load the saved data: data = np.load('prepared_data.npz', allow_pickle=True)")
+print("3. Or train from the command line:")
+print("   safe-train --config safe_fraud_detection/configs/credit_card_config.yaml --data prepared_data.npz")
 
 

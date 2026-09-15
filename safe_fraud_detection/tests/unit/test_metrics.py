@@ -53,6 +53,10 @@ class TestEvaluateAtTimestamps(unittest.TestCase):
         self.assertAlmostEqual(summary['early_detection_rate'], 0.5)
         self.assertAlmostEqual(summary['avg_early_timestamps'], 2.0)
 
+        # Numpy scalars would break torch.load(weights_only=True) on saved checkpoints
+        for key, value in summary.items():
+            self.assertIn(type(value), (int, float), msg=key)
+
 
 if __name__ == '__main__':
     unittest.main()

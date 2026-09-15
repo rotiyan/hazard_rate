@@ -20,12 +20,11 @@ from typing import List, Optional
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(parent_dir)
 
-from prepare_credit_card_data import prepare_credit_card_data
+from safe_fraud_detection.data.prepare_credit_card_data import prepare_credit_card_data
 from safe_fraud_detection.data.dataset import CreditCardDataset
 from safe_fraud_detection.data.preprocessing import SequencePreprocessor
 from safe_fraud_detection.models.safe_model import SAFEModel
 from safe_fraud_detection.models.loss import WeightedSAFELoss
-from safe_fraud_detection.utils.trainer import Trainer
 
 
 def collate_fn(batch):
@@ -276,7 +275,7 @@ def train_model(
     
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='min', factor=0.5, patience=5, verbose=True
+        optimizer, mode='min', factor=0.5, patience=5
     )
     
     # ============= 5. Train Model =============

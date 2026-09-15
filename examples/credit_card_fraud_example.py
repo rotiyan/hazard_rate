@@ -20,8 +20,6 @@ from safe_fraud_detection.data.dataset import CreditCardDataset
 from safe_fraud_detection.data.preprocessing import SequencePreprocessor, create_train_val_test_split
 from safe_fraud_detection.models.safe_model import SAFEModel
 from safe_fraud_detection.models.loss import SAFELoss, WeightedSAFELoss
-from safe_fraud_detection.utils.trainer import Trainer
-from safe_fraud_detection.utils.metrics import calculate_metrics
 
 
 def collate_fn(batch):
@@ -283,7 +281,7 @@ def main():
     
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='min', factor=0.5, patience=5, verbose=True
+        optimizer, mode='min', factor=0.5, patience=5
     )
     
     # Training loop

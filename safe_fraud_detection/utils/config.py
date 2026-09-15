@@ -6,7 +6,26 @@ import yaml
 import json
 import torch
 from typing import Any, Dict, Optional
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict, field, fields
+
+
+def resolve_device(device: str) -> str:
+    """Map 'auto' to 'cuda' when available, otherwise 'cpu'."""
+    if device == 'auto':
+        return 'cuda' if torch.cuda.is_available() else 'cpu'
+    return device
+
+
+def _build_section(section_cls, config_dict: Dict[str, Any], name: str):
+    """Build one config section, naming any keys the section doesn't define."""
+    values = config_dict.get(name) or {}
+    valid_keys = [f.name for f in fields(section_cls)]
+    unknown = sorted(set(values) - set(valid_keys))
+    if unknown:
+        raise ValueError(
+            f"Unknown keys in '{name}' config section: {unknown}. Valid keys: {valid_keys}"
+        )
+    return section_cls(**values)
 
 
 @dataclass
@@ -71,8 +90,11 @@ class Config:
     checkpoint_dir: str = 'checkpoints/'
     log_dir: str = 'logs/'
     
-    # Device
-    device: str = 'cuda' if torch.cuda.is_available() else 'cpu'
+    # Device: 'auto' (cuda when available, otherwise cpu), 'cuda', or 'cpu'
+    device: str = 'auto'
+
+    def __post_init__(self):
+        self.device = resolve_device(self.device)
     
     @classmethod
     def from_yaml(cls, path: str) -> 'Config':
@@ -91,11 +113,21 @@ class Config:
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> 'Config':
         """Create config from dictionary."""
-        model_config = ModelConfig(**config_dict.get('model', {}))
-        training_config = TrainingConfig(**config_dict.get('training', {}))
-        data_config = DataConfig(**config_dict.get('data', {}))
-        loss_config = LossConfig(**config_dict.get('loss', {}))
-        eval_config = EvaluationConfig(**config_dict.get('evaluation', {}))
+        valid_top_level = {
+            'model', 'training', 'data', 'loss', 'evaluation',
+            'data_path', 'checkpoint_dir', 'log_dir', 'device'
+        }
+        unknown = sorted(set(config_dict) - valid_top_level)
+        if unknown:
+            raise ValueError(
+                f"Unknown top-level config keys: {unknown}. Valid keys: {sorted(valid_top_level)}"
+            )
+
+        model_config = _build_section(ModelConfig, config_dict, 'model')
+        training_config = _build_section(TrainingConfig, config_dict, 'training')
+        data_config = _build_section(DataConfig, config_dict, 'data')
+        loss_config = _build_section(LossConfig, config_dict, 'loss')
+        eval_config = _build_section(EvaluationConfig, config_dict, 'evaluation')
         
         return cls(
             model=model_config,
@@ -106,7 +138,7 @@ class Config:
             data_path=config_dict.get('data_path', 'data/'),
             checkpoint_dir=config_dict.get('checkpoint_dir', 'checkpoints/'),
             log_dir=config_dict.get('log_dir', 'logs/'),
-            device=config_dict.get('device', 'cuda' if torch.cuda.is_available() else 'cpu')
+            device=config_dict.get('device', 'auto')
         )
     
     def to_dict(self) -> Dict[str, Any]:

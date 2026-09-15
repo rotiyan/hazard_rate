@@ -177,7 +177,7 @@ detection_times = model.get_early_detection_time(
 
 ```bash
 # Train a model
-safe-train --config configs/default_config.yaml \
+safe-train --config safe_fraud_detection/configs/default_config.yaml \
            --data data/fraud_data.npz \
            --output checkpoints/model.pt
 
@@ -244,7 +244,7 @@ evaluation:
   eval_timestamps: [0, 1, 2, 3, 4]
 ```
 
-See `configs/` directory for more examples.
+See the `safe_fraud_detection/configs/` directory for more examples. Set `device: 'auto'` to use CUDA when available and fall back to CPU. Unknown keys raise an error naming the key.
 
 ## Data Format
 
@@ -253,6 +253,14 @@ SAFE expects data in the following format:
 - **Sequences**: `(num_samples, seq_len, num_features)` - Time-varying features
 - **Events**: `(num_samples,)` - Binary indicator (1=fraudster, 0=censored)
 - **Times**: `(num_samples,)` - Last observed time for each sample
+
+`safe-train` and `safe-eval` read `.npz` files with the keys `sequences`, `events` and `times` (`event_indicators` and `time_observed` are also accepted). Variable-length sequences are supported: save them with `save_npz_data` and they are padded when loaded. `safe-train` sets the model's `input_dim` from the data.
+
+```python
+from safe_fraud_detection.data import save_npz_data
+
+save_npz_data('data/fraud_data.npz', sequences, events, times)
+```
 
 ### Example Data Preparation
 

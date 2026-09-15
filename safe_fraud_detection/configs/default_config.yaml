@@ -39,4 +39,4 @@ checkpoint_dir: 'checkpoints/'
 log_dir: 'logs/'
 
 # Device
-device: 'cuda'  # 'cuda' or 'cpu'
+device: 'auto'  # 'auto' (cuda if available, else cpu), 'cuda', or 'cpu'

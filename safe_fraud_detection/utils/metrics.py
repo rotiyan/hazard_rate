@@ -167,9 +167,11 @@ class EarlyDetectionMetrics:
         if stats['num_fraudsters'] > 0:
             summary['early_detection_rate'] = stats['num_early_detected'] / stats['num_fraudsters']
         
+        # Plain Python floats so the summary can be saved in a checkpoint and
+        # loaded with torch.load(weights_only=True), which rejects numpy scalars
         if len(stats['early_detection_times']) > 0:
-            summary['avg_early_timestamps'] = np.mean(stats['early_detection_times'])
-            summary['median_early_timestamps'] = np.median(stats['early_detection_times'])
+            summary['avg_early_timestamps'] = float(np.mean(stats['early_detection_times']))
+            summary['median_early_timestamps'] = float(np.median(stats['early_detection_times']))
         
         return summary
     

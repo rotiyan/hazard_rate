@@ -2,7 +2,6 @@
 Evaluation script for SAFE model
 """
 
-import os
 import sys
 import argparse
 import logging
@@ -10,13 +9,13 @@ from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader
-import numpy as np
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from safe_fraud_detection.models.safe_model import SAFEModel
 from safe_fraud_detection.data.dataset import SurvivalDataset
+from safe_fraud_detection.data.npz_io import load_npz_data
 from safe_fraud_detection.data.preprocessing import SequencePreprocessor
 from safe_fraud_detection.utils.metrics import evaluate_at_timestamps
 from safe_fraud_detection.utils.config import Config
@@ -63,13 +62,7 @@ def main():
     # Load test data
     logger.info(f"Loading test data from {args.data}")
     
-    if os.path.exists(args.data):
-        data = np.load(args.data, allow_pickle=True)
-        sequences = data['sequences']
-        events = data['events']
-        times = data['times']
-    else:
-        raise FileNotFoundError(f"Data file not found: {args.data}")
+    sequences, events, times = load_npz_data(args.data)
     
     # Preprocess (use same config as training if available)
     data_config = config_dict.get('data', {})
