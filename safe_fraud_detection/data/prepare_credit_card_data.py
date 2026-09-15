@@ -106,7 +106,8 @@ def prepare_credit_card_data(
     sequences = []
     event_indicators = []
     time_observed = []
-    
+    num_closed_before_first_week = 0
+
     for card_num in all_cards:
         # Get all rows for this card, sorted by week_start
         card_data = features_df[features_df[card_number_col] == card_num].copy()
@@ -123,39 +124,25 @@ def prepare_credit_card_data(
         close_date = card_info['close_date']
         is_fraud = card_info['is_fraud']
         
-        # Calculate time_observed
-        first_week = card_data[week_start_col].min()
-        last_week = card_data[week_start_col].max()
-        
-        if close_date is not None and not pd.isna(close_date):
-            # Card was closed - determine if before or after last week
-            if close_date <= last_week:
-                # Closed during observation period
-                # Find the week when it was closed
-                weeks_from_start = (close_date - first_week).days / 7.0
-                time_obs = int(np.ceil(weeks_from_start))
-                # Only include weeks up to close date
-                if time_obs < len(feature_sequence):
-                    feature_sequence = feature_sequence[:time_obs]
-                event_indicator = 1 if is_fraud else 0
-            else:
-                # Closed after observation period (censored)
-                weeks_from_start = (last_week - first_week).days / 7.0
-                time_obs = len(feature_sequence)
-                event_indicator = 0
+        # Calculate time_observed as a count of weekly rows, so it indexes the
+        # same positions as the sequence (also correct when weeks are missing)
+        observation_end = card_data[week_start_col].max() + pd.Timedelta(days=7)
+
+        if close_date is not None and not pd.isna(close_date) and close_date < observation_end:
+            # Closed during observation period (including the last observed week):
+            # keep the weeks that started before the close date
+            time_obs = int((card_data[week_start_col] < close_date).sum())
+            if time_obs == 0:
+                # Closed before the card's first observed week - no usable history
+                num_closed_before_first_week += 1
+                continue
+            feature_sequence = feature_sequence[:time_obs]
+            event_indicator = 1 if is_fraud else 0
         else:
-            # No close date - censored (still active)
-            weeks_from_start = (last_week - first_week).days / 7.0
+            # No close date (still active) or closed after observation period: censored
             time_obs = len(feature_sequence)
             event_indicator = 0
-        
-        # Ensure we have at least one week of data
-        if len(feature_sequence) == 0:
-            continue
-        
-        # Ensure time_observed is at least 1
-        time_obs = max(1, time_obs)
-        
+
         sequences.append(feature_sequence)
         event_indicators.append(event_indicator)
         time_observed.append(time_obs)
@@ -166,6 +153,8 @@ def prepare_credit_card_data(
     
     print(f"\n=== Data Preparation Summary ===")
     print(f"Total cards processed: {len(sequences)}")
+    if num_closed_before_first_week:
+        print(f"Skipped cards closed before their first observed week: {num_closed_before_first_week}")
     print(f"Number of features per week: {num_features}")
     print(f"Fraud cases (event=1): {int(event_indicators.sum())}")
     print(f"Censored cases (event=0): {int((1 - event_indicators).sum())}")

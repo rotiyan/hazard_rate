@@ -354,7 +354,19 @@ class CreditCardDataset(Dataset):
         
         # Store actual lengths before padding
         self.actual_lengths = np.array([len(seq) for seq in sequences])
-        
+
+        # The loss sums hazards up to time_observed, so it must not point past
+        # the real data into padding
+        invalid = (self.time_observed < 1) | (self.time_observed > self.actual_lengths)
+        if invalid.any():
+            first = int(np.flatnonzero(invalid)[0])
+            raise ValueError(
+                f"time_observed must be between 1 and the sequence length. "
+                f"{int(invalid.sum())} samples violate this; first is index {first} "
+                f"with time_observed={self.time_observed[first]} and "
+                f"length={self.actual_lengths[first]}"
+            )
+
         # Determine max sequence length
         if max_seq_len is None:
             self.max_seq_len = int(self.actual_lengths.max())

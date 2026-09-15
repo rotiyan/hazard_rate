@@ -113,6 +113,25 @@ class TestSAFELoss(unittest.TestCase):
         # Losses should be different
         self.assertNotEqual(loss_early.item(), loss_late.item())
 
+    def test_matches_closed_form(self):
+        """Test loss equals Σλ for censored and -ln(1 - e^(-Σλ)) for events."""
+        hazard_rates = torch.full((2, 4), 0.25)
+        loss = self.loss_fn(hazard_rates, torch.tensor([0., 1.]), torch.tensor([4, 4]))
+
+        expected = (1.0 - np.log(1 - np.exp(-1.0))) / 2
+        self.assertAlmostEqual(loss.item(), expected, places=5)
+
+    def test_large_cumulative_hazard_keeps_gradient(self):
+        """Test gradients don't vanish when cumulative hazard is large."""
+        hazard_rates = torch.ones(2, 30, requires_grad=True)
+        loss = self.loss_fn(hazard_rates, torch.tensor([0., 1.]), torch.tensor([30, 30]))
+        loss.backward()
+
+        self.assertTrue(torch.isfinite(loss))
+        self.assertTrue(torch.all(torch.isfinite(hazard_rates.grad)))
+        # Censored sample with Σλ = 30 must still be pushed to lower its hazards
+        self.assertTrue(torch.all(hazard_rates.grad[0] > 0))
+
 
 class TestRegularSurvivalLoss(unittest.TestCase):
     """Test cases for regular survival loss."""
@@ -156,6 +175,15 @@ class TestRegularSurvivalLoss(unittest.TestCase):
         
         # They should produce different values
         self.assertNotEqual(loss_safe.item(), loss_regular.item())
+
+    def test_large_cumulative_hazard_keeps_gradient(self):
+        """Test gradients don't vanish when cumulative hazard is large."""
+        hazard_rates = torch.ones(1, 30, requires_grad=True)
+        loss = self.loss_fn(hazard_rates, torch.tensor([0.]), torch.tensor([30]))
+        loss.backward()
+
+        self.assertTrue(torch.isfinite(loss))
+        self.assertTrue(torch.all(hazard_rates.grad > 0))
 
 
 class TestWeightedSAFELoss(unittest.TestCase):

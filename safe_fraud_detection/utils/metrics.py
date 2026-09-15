@@ -259,7 +259,14 @@ def evaluate_at_timestamps(
             )
     
     # Calculate early detection statistics
-    detection_times = np.argmax(all_survival_probs < threshold, axis=1)
+    # Samples that never drop below the threshold get seq_len (never detected);
+    # a bare argmax would return 0 for them and count them as detected early
+    below_threshold = all_survival_probs < threshold
+    detection_times = np.where(
+        below_threshold.any(axis=1),
+        below_threshold.argmax(axis=1),
+        all_survival_probs.shape[1]
+    )
     metrics_tracker.update_early_detection(detection_times, all_times, all_events)
     
     return metrics_tracker

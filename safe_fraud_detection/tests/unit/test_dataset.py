@@ -11,10 +11,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from safe_fraud_detection.data.dataset import (
-    FraudDataset, 
+    FraudDataset,
     SurvivalDataset,
     TwitterDataset,
-    WikiDataset
+    WikiDataset,
+    CreditCardDataset
 )
 
 
@@ -148,6 +149,33 @@ class TestSpecializedDatasets(unittest.TestCase):
         self.assertEqual(len(dataset), 10)
         self.assertIsNotNone(dataset.feature_names)
         self.assertEqual(len(dataset.feature_names), 8)
+
+
+class TestCreditCardDataset(unittest.TestCase):
+    """Test cases for CreditCardDataset."""
+
+    def setUp(self):
+        """Set up variable-length sequences."""
+        self.sequences = [np.random.randn(n, 3) for n in (4, 2, 6)]
+
+    def test_padding_and_masks(self):
+        """Test sequences are padded and masks mark real positions."""
+        dataset = CreditCardDataset(self.sequences, np.array([1, 0, 1]), np.array([4, 2, 5]))
+        sequence, mask, event, time, length = dataset[1]
+
+        self.assertEqual(sequence.shape, (6, 3))
+        np.testing.assert_array_equal(mask.numpy(), [1, 1, 0, 0, 0, 0])
+        self.assertEqual(length.item(), 2)
+
+    def test_time_observed_beyond_length_raises(self):
+        """Test time_observed pointing into padding is rejected."""
+        with self.assertRaisesRegex(ValueError, "index 1"):
+            CreditCardDataset(self.sequences, np.array([1, 1, 0]), np.array([4, 3, 6]))
+
+    def test_time_observed_zero_raises(self):
+        """Test time_observed below 1 is rejected."""
+        with self.assertRaises(ValueError):
+            CreditCardDataset(self.sequences, np.array([1, 1, 0]), np.array([0, 2, 6]))
 
 
 if __name__ == '__main__':

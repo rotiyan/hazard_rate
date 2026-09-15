@@ -199,7 +199,8 @@ def example_correct_format():
         sequences.append(seq)
     
     event_indicators = np.random.randint(0, 2, size=num_samples)
-    time_observed = np.random.randint(1, 52, size=num_samples)
+    # time_observed must be between 1 and each sequence's length
+    time_observed = np.array([len(seq) for seq in sequences])
     
     print("\n✓ CORRECT FORMAT:")
     print(f"  sequences: List of {len(sequences)} arrays")
