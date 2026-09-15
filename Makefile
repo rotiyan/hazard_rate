@@ -1,14 +1,12 @@
-.PHONY: install test clean lint format docs
+.PHONY: install install-dev test test-cov test-unit test-integration clean lint format typecheck quality build help
 
-# Install package and dependencies
+# Install package and runtime dependencies
 install:
-	pip install -r requirements.txt
 	pip install -e .
 
-# Install development dependencies
+# Install with development tools and plotting (for the examples)
 install-dev:
-	pip install -r requirements.txt
-	pip install -e ".[dev]"
+	pip install -e ".[dev,viz]"
 
 # Run tests
 test:
@@ -49,22 +47,18 @@ format:
 typecheck:
 	mypy safe_fraud_detection/ --ignore-missing-imports
 
-# Build documentation
-docs:
-	cd docs && make html
-
 # Run all quality checks
 quality: lint typecheck test
 
-# Build package
+# Build sdist and wheel into dist/ (needs the dev extras)
 build:
-	python setup.py sdist bdist_wheel
+	python -m build
 
 # Help
 help:
 	@echo "Available commands:"
-	@echo "  make install          - Install package and dependencies"
-	@echo "  make install-dev      - Install with development dependencies"
+	@echo "  make install          - Install package and runtime dependencies"
+	@echo "  make install-dev      - Install with development tools and plotting"
 	@echo "  make test             - Run all tests"
 	@echo "  make test-cov         - Run tests with coverage"
 	@echo "  make test-unit        - Run unit tests only"
@@ -74,5 +68,4 @@ help:
 	@echo "  make format           - Format code with black"
 	@echo "  make typecheck        - Run type checking"
 	@echo "  make quality          - Run all quality checks"
-	@echo "  make build            - Build package"
-	@echo "  make docs             - Build documentation"
+	@echo "  make build            - Build sdist and wheel"

@@ -73,8 +73,8 @@ See **[CREDIT_CARD_FRAUD_GUIDE.md](CREDIT_CARD_FRAUD_GUIDE.md)** for complete do
 
 ```bash
 # Clone the repository
-git clone https://github.com/rotiyan/safe-fraud-detection.git
-cd safe-fraud-detection
+git clone https://github.com/rotiyan/hazard_rate.git
+cd hazard_rate
 
 # Create and activate conda environment
 conda create -n fraud_hazard python=3.9

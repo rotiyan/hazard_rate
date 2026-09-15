@@ -23,13 +23,14 @@ def read_long_description():
 setup(
     name='safe-fraud-detection',
     version='1.0.0',
-    author='SAFE Implementation Team',
-    author_email='your.email@example.com',
+    author='rotiyan',
     description='A Neural Survival Analysis Model for Fraud Early Detection',
     long_description=read_long_description(),
     long_description_content_type='text/markdown',
-    url='https://github.com/yourusername/safe-fraud-detection',
-    packages=find_packages(exclude=['tests', 'tests.*']),
+    url='https://github.com/rotiyan/hazard_rate',
+    license='MIT',
+    # Exclude safe_fraud_detection.tests too, not just a top-level tests package
+    packages=find_packages(exclude=['tests', 'tests.*', '*.tests', '*.tests.*']),
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Science/Research',
@@ -52,15 +53,10 @@ setup(
             'black>=23.0.0',
             'flake8>=6.0.0',
             'mypy>=1.5.0',
-        ],
-        'docs': [
-            'sphinx>=7.0.0',
-            'sphinx-rtd-theme>=1.3.0',
+            'build>=1.0.0',
         ],
         'viz': [
             'matplotlib>=3.7.0',
-            'seaborn>=0.12.0',
-            'tensorboard>=2.13.0',
         ]
     },
     entry_points={
@@ -70,5 +66,7 @@ setup(
         ],
     },
     include_package_data=True,
+    # MANIFEST.in keeps tests in the sdist; don't install them as package data
+    exclude_package_data={'safe_fraud_detection': ['tests/*', 'tests/*/*']},
     zip_safe=False,
 )
